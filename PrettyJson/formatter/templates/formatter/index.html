@@ -1,0 +1,108 @@
+
+{% extends "formatter/base.html" %}
+
+{% block title %}PrettyJSON — JSON Formatter{% endblock %}
+
+{% block content %}
+
+<section class="intro">
+    <p class="eyebrow">JSON TOOLKIT</p>
+
+    <h1>Make JSON <span>readable.</span></h1>
+
+    <p class="description">
+        Format, validate, and minify JSON in one clean workspace.
+    </p>
+</section>
+
+<section class="workspace">
+
+    <div class="toolbar">
+        <div class="button-group">
+            <button class="button button-primary" type="button">
+                Format
+            </button>
+
+            <button class="button" type="button">
+                Validate
+            </button>
+
+            <button class="button" type="button">
+                Minify
+            </button>
+        </div>
+
+        <button class="button" type="button">
+            Load example
+        </button>
+    </div>
+
+    <div class="editor-grid">
+
+        <!-- Input editor -->
+
+        <section class="editor-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Your JSON</h2>
+                <span class="panel-label">INPUT</span>
+            </div>
+
+            <textarea
+                id="json-input"
+                class="editor"
+                aria-label="JSON input"
+                placeholder='Paste JSON here, for example:
+{"name":"Ali","age":17}'
+                spellcheck="false"
+            ></textarea>
+
+            <div class="panel-footer">
+                <span>Input editor</span>
+
+                <button class="text-button" type="button">
+                    Clear
+                </button>
+            </div>
+        </section>
+
+        <!-- Output editor -->
+
+        <section class="editor-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Result</h2>
+                <span class="panel-label">OUTPUT</span>
+            </div>
+
+            <textarea
+                id="json-output"
+                class="editor"
+                aria-label="JSON output"
+                placeholder="Your result will appear here..."
+                readonly
+                spellcheck="false"
+            ></textarea>
+
+            <div class="panel-footer">
+                <span>Output preview</span>
+
+                <button class="text-button" type="button">
+                    Copy
+                </button>
+            </div>
+        </section>
+
+    </div>
+
+    <div class="status" role="status" aria-live="polite">
+        Ready — paste JSON to begin.
+    </div>
+
+</section>
+
+<p class="privacy-note">
+    Avoid entering passwords, API keys, or other confidential information.
+</p>
+
+
+
+{% endblock %}

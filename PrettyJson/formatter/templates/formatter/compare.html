@@ -1,239 +1,533 @@
 {% extends "formatter/base.html" %}
 
 {% comment %}
-  Compare page for PrettyJSON.
+Expected context:
+    json_a, json_b: Original and modified JSON input strings
+    error_a, error_b: Individual JSON parsing errors (optional)
+    error: General error message (optional)
+    result:
+        identical: bool
+        added: list of {path, value}
+        removed: list of {path, value}
+        modified: list of {path, old, new}
 
-  Template context this page understands (all optional; the view supplies them):
-    json_a, json_b   str    the submitted text, echoed back into the editors
-    error_a, error_b str    parse error for each document
-    error            str    a general error (shown in the status bar)
-    result           obj    present only after a successful comparison:
-      result.identical  bool
-      result.added      list of {path, value}
-      result.removed    list of {path, value}
-      result.modified   list of {path, old, new}
-
-  Nothing here computes a diff. Without `result`, no results panel is rendered.
+The backend performs all JSON parsing and comparison.
 {% endcomment %}
 
 {% block title %}PrettyJSON — Compare JSON{% endblock %}
 
 {% block content %}
 <style>
-/* Compare page only. Everything else comes from base.html. */
-.cmp-body{display:flex;min-width:0}
-.cmp-gutter{flex:none;box-sizing:border-box;min-width:42px;height:var(--pane-h);margin:0;padding:12px 8px 24px 8px;overflow:hidden;border-right:1px solid var(--border);color:var(--dim);font:12.5px/1.6 var(--mono);text-align:right;white-space:pre;user-select:none}
-.cmp-body .editor{flex:1;width:auto;min-width:0}
-.cmp-hint{margin-left:auto;color:var(--dim);font-size:11px}
-.cmp-hint kbd{padding:0 5px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--muted);font:inherit}
-.cmp-foot-err{color:var(--red)}
+/* Editor layout */
+.cmp-body {
+    display: flex;
+    min-width: 0;
+}
 
-.cmp-results{margin-top:16px}
-.cmp-results .status[data-state=diff]::before{background:var(--amber)}
-.cmp-results .status[data-state=diff] .st-msg{color:var(--amber)}
-.cmp-badges{display:flex;flex-wrap:wrap;gap:6px}
-.cmp-badge-mod em{color:var(--amber)}
+.cmp-gutter {
+    flex: none;
+    box-sizing: border-box;
+    min-width: 42px;
+    height: var(--pane-h);
+    margin: 0;
+    padding: 12px 8px 24px;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    color: var(--dim);
+    font: 12.5px/1.6 var(--mono);
+    text-align: right;
+    white-space: pre;
+    user-select: none;
+}
 
-.cmp-group{border-top:1px solid var(--border)}
-.cmp-group h2{display:flex;align-items:center;gap:8px;margin:0;padding:8px 12px;background:var(--raised);border-bottom:1px solid var(--border);font:500 12px var(--mono);color:var(--muted)}
-.cmp-group h2 span{color:var(--dim);font-weight:400}
-.cmp-list{margin:0;padding:0;list-style:none}
-.cmp-row{display:grid;grid-template-columns:20px minmax(120px,240px) 1fr;gap:4px 12px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12.5px}
-.cmp-row:last-child{border-bottom:0}
-.cmp-row:hover{background:var(--raised)}
-.cmp-sign{font-weight:700;text-align:center}
-.cmp-path{color:var(--key);overflow-wrap:anywhere}
-.cmp-val{margin:0;min-width:0;color:var(--text);font:inherit;overflow-wrap:anywhere}
-.cmp-val code{font:inherit}
-.cmp-old{color:var(--red);text-decoration:line-through;text-decoration-color:rgba(248,81,73,.5)}
-.cmp-new{color:var(--green)}
-.cmp-arrow{margin:0 6px;color:var(--dim)}
-.cmp-add .cmp-sign{color:var(--green)}
-.cmp-del .cmp-sign{color:var(--red)}
-.cmp-mod .cmp-sign{color:var(--amber)}
-.cmp-del .cmp-val{color:var(--red)}
-.cmp-add .cmp-val{color:var(--green)}
-.cmp-empty{margin:0;padding:20px 12px;color:var(--muted);font-size:12px}
+.cmp-body .editor {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+}
 
-@media (max-width:800px){
-  .cmp-row{grid-template-columns:20px 1fr}
-  .cmp-row .cmp-val{grid-column:2}
-  .cmp-hint{display:none}
+.cmp-hint {
+    margin-left: auto;
+    color: var(--dim);
+    font-size: 11px;
+}
+
+.cmp-hint kbd {
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+}
+
+.cmp-foot-err {
+    color: var(--red);
+}
+
+/* Results */
+.cmp-results {
+    margin-top: 16px;
+}
+
+.cmp-results .status[data-state="diff"]::before {
+    background: var(--amber);
+}
+
+.cmp-results .status[data-state="diff"] .st-msg {
+    color: var(--amber);
+}
+
+.cmp-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cmp-badge-mod em {
+    color: var(--amber);
+}
+
+.cmp-group {
+    border-top: 1px solid var(--border);
+}
+
+.cmp-group h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 12px;
+    background: var(--raised);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font: 500 12px var(--mono);
+}
+
+.cmp-group h2 span {
+    color: var(--dim);
+    font-weight: 400;
+}
+
+.cmp-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cmp-row {
+    display: grid;
+    grid-template-columns: 20px minmax(120px, 240px) minmax(0, 1fr);
+    gap: 4px 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+}
+
+.cmp-row:last-child {
+    border-bottom: 0;
+}
+
+.cmp-row:hover {
+    background: var(--raised);
+}
+
+.cmp-sign {
+    font-weight: 700;
+    text-align: center;
+}
+
+.cmp-path {
+    min-width: 0;
+    color: var(--key);
+    overflow-wrap: anywhere;
+}
+
+.cmp-val {
+    min-width: 0;
+    margin: 0;
+    color: var(--text);
+    font: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.cmp-val code {
+    font: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.cmp-old {
+    color: var(--red);
+    text-decoration: line-through;
+    text-decoration-color: rgba(248, 81, 73, .5);
+}
+
+.cmp-new {
+    color: var(--green);
+}
+
+.cmp-arrow {
+    margin: 0 6px;
+    color: var(--dim);
+}
+
+.cmp-add .cmp-sign,
+.cmp-add .cmp-val {
+    color: var(--green);
+}
+
+.cmp-del .cmp-sign,
+.cmp-del .cmp-val {
+    color: var(--red);
+}
+
+.cmp-mod .cmp-sign {
+    color: var(--amber);
+}
+
+.cmp-empty {
+    margin: 0;
+    padding: 20px 12px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+@media (max-width: 800px) {
+    .cmp-row {
+        grid-template-columns: 20px minmax(0, 1fr);
+    }
+
+    .cmp-row .cmp-val {
+        grid-column: 2;
+    }
+
+    .cmp-hint {
+        display: none;
+    }
 }
 </style>
 
 <section class="intro">
-  <p class="eyebrow">JSON TOOLKIT</p>
-  <h1>Compare JSON <span>documents.</span></h1>
-  <p class="description">Compare two JSON documents and identify exactly what changed.</p>
+    <p class="eyebrow">JSON TOOLKIT</p>
+    <h1>Compare JSON <span>documents.</span></h1>
+    <p class="description">
+        Compare two JSON documents and identify exactly what changed.
+    </p>
 </section>
 
-<form method="POST" action="" class="workspace" id="compare-form" novalidate>
-  {% csrf_token %}
+<form
+    method="POST"
+    action=""
+    class="workspace"
+    id="compare-form"
+    novalidate
+>
+    {% csrf_token %}
 
-  <div class="toolbar">
-    <div class="button-group">
-      <a class="button button-secondary" href="/">&larr; Back</a>
-      <button type="submit" class="button button-primary">Compare JSON</button>
+    <div class="toolbar">
+        <div class="button-group">
+            <a class="button button-secondary" href="/">&larr; Back</a>
+            <button type="submit" class="button button-primary">
+                Compare JSON
+            </button>
+        </div>
+
+        <span class="cmp-hint">
+            <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to compare
+        </span>
     </div>
-    <span class="cmp-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to compare</span>
-  </div>
 
-  <div class="editor-grid">
-    <section class="editor-panel" aria-labelledby="label-json-a">
-      <div class="panel-header">
-        <label class="panel-title" id="label-json-a" for="json_a">Original JSON</label>
-        <span class="panel-label">A</span>
-      </div>
-      <div class="cmp-body">
-        <div class="cmp-gutter" id="gutter-a" aria-hidden="true">1</div>
-        <textarea class="editor" id="json_a" name="json_a" spellcheck="false" autocomplete="off" autocapitalize="off" required{% if error_a %} aria-invalid="true" aria-describedby="foot-a"{% else %} aria-describedby="foot-a"{% endif %} placeholder='{
+    <div class="editor-grid">
+        <!-- Original JSON -->
+        <section class="editor-panel" aria-labelledby="label-json-a">
+            <div class="panel-header">
+                <label class="panel-title" id="label-json-a" for="json_a">
+                    Original JSON
+                </label>
+                <span class="panel-label">A</span>
+            </div>
+
+            <div class="cmp-body">
+                <div
+                    class="cmp-gutter"
+                    id="gutter-a"
+                    aria-hidden="true"
+                >1</div>
+
+                <textarea
+                    class="editor"
+                    id="json_a"
+                    name="json_a"
+                    spellcheck="false"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    required
+                    aria-describedby="foot-a"
+                    {% if error_a %}aria-invalid="true"{% endif %}
+                    placeholder='{
   "id": 42,
   "name": "Ada",
   "roles": ["admin"],
   "active": true
-}'>{{ json_a|default:"" }}</textarea>
-      </div>
-      <div class="panel-footer" id="foot-a">
-        {% if error_a %}<span class="cmp-foot-err" role="alert">{{ error_a }}</span>{% else %}<span>Paste the original document</span>{% endif %}
-        <span data-count="json_a">0 lines</span>
-      </div>
-    </section>
+}'>{% if json_a != None %}{{ json_a }}{% endif %}</textarea>
+            </div>
 
-    <section class="editor-panel" aria-labelledby="label-json-b">
-      <div class="panel-header">
-        <label class="panel-title" id="label-json-b" for="json_b">Modified JSON</label>
-        <span class="panel-label">B</span>
-      </div>
-      <div class="cmp-body">
-        <div class="cmp-gutter" id="gutter-b" aria-hidden="true">1</div>
-        <textarea class="editor" id="json_b" name="json_b" spellcheck="false" autocomplete="off" autocapitalize="off" required{% if error_b %} aria-invalid="true" aria-describedby="foot-b"{% else %} aria-describedby="foot-b"{% endif %} placeholder='{
+            <div class="panel-footer" id="foot-a">
+                {% if error_a %}
+                    <span class="cmp-foot-err" role="alert">
+                        {{ error_a }}
+                    </span>
+                {% else %}
+                    <span>Paste the original document</span>
+                {% endif %}
+
+                <span data-count="json_a">0 lines</span>
+            </div>
+        </section>
+
+        <!-- Modified JSON -->
+        <section class="editor-panel" aria-labelledby="label-json-b">
+            <div class="panel-header">
+                <label class="panel-title" id="label-json-b" for="json_b">
+                    Modified JSON
+                </label>
+                <span class="panel-label">B</span>
+            </div>
+
+            <div class="cmp-body">
+                <div
+                    class="cmp-gutter"
+                    id="gutter-b"
+                    aria-hidden="true"
+                >1</div>
+
+                <textarea
+                    class="editor"
+                    id="json_b"
+                    name="json_b"
+                    spellcheck="false"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    required
+                    aria-describedby="foot-b"
+                    {% if error_b %}aria-invalid="true"{% endif %}
+                    placeholder='{
   "id": 42,
   "name": "Ada Lovelace",
   "roles": ["admin", "editor"],
   "email": "ada@example.com"
-}'>{{ json_b|default:"" }}</textarea>
-      </div>
-      <div class="panel-footer" id="foot-b">
-        {% if error_b %}<span class="cmp-foot-err" role="alert">{{ error_b }}</span>{% else %}<span>Paste the modified document</span>{% endif %}
-        <span data-count="json_b">0 lines</span>
-      </div>
-    </section>
-  </div>
+}'>{% if json_b != None %}{{ json_b }}{% endif %}</textarea>
+            </div>
 
-  {% if error %}
-  <div class="status" data-state="error" role="alert">
-    <span class="st-msg">{{ error }}</span>
-  </div>
-  {% endif %}
+            <div class="panel-footer" id="foot-b">
+                {% if error_b %}
+                    <span class="cmp-foot-err" role="alert">
+                        {{ error_b }}
+                    </span>
+                {% else %}
+                    <span>Paste the modified document</span>
+                {% endif %}
+
+                <span data-count="json_b">0 lines</span>
+            </div>
+        </section>
+    </div>
+
+    {% if error %}
+        <div class="status" data-state="error" role="alert">
+            <span class="st-msg">{{ error }}</span>
+        </div>
+    {% endif %}
 </form>
 
-{% if result %}
-<section class="workspace cmp-results" aria-labelledby="results-title" id="results">
-  <div class="panel-header">
-    <h2 class="panel-title" id="results-title" style="font-size:12px;font-weight:500">Comparison result</h2>
-    <span class="panel-label">diff</span>
-  </div>
-
-  <div class="status" role="status" data-state="{% if result.identical %}valid{% else %}diff{% endif %}">
-    <span class="st-msg">{% if result.identical %}No differences found{% else %}Differences detected{% endif %}</span>
-    <div class="cmp-badges">
-      <span class="badge"><b>added</b><em>{{ result.added|length }}</em></span>
-      <span class="badge r"><b>removed</b><em>{{ result.removed|length }}</em></span>
-      <span class="badge cmp-badge-mod"><b>modified</b><em>{{ result.modified|length }}</em></span>
+{% if result != None %}
+<section
+    class="workspace cmp-results"
+    aria-labelledby="results-title"
+    id="results"
+>
+    <div class="panel-header">
+        <h2
+            class="panel-title"
+            id="results-title"
+            style="font-size:12px;font-weight:500"
+        >
+            Comparison result
+        </h2>
+        <span class="panel-label">diff</span>
     </div>
-  </div>
 
-  {% if result.identical %}
-    <p class="cmp-empty">Both documents contain the same data.</p>
-  {% else %}
+    <div
+        class="status"
+        role="status"
+        data-state="{% if result.identical %}valid{% else %}diff{% endif %}"
+    >
+        <span class="st-msg">
+            {% if result.identical %}
+                No differences found
+            {% else %}
+                Differences detected
+            {% endif %}
+        </span>
 
-    {% if result.added %}
-    <div class="cmp-group">
-      <h2>Added <span>{{ result.added|length }}</span></h2>
-      <ul class="cmp-list">
-        {% for item in result.added %}
-        <li class="cmp-row cmp-add">
-          <span class="cmp-sign" aria-hidden="true">+</span>
-          <span class="cmp-path">{{ item.path }}</span>
-          <pre class="cmp-val"><code>{{ item.value }}</code></pre>
-        </li>
-        {% endfor %}
-      </ul>
+        <div class="cmp-badges">
+            <span class="badge">
+                <b>added</b>
+                <em>{{ result.added|length }}</em>
+            </span>
+
+            <span class="badge r">
+                <b>removed</b>
+                <em>{{ result.removed|length }}</em>
+            </span>
+
+            <span class="badge cmp-badge-mod">
+                <b>modified</b>
+                <em>{{ result.modified|length }}</em>
+            </span>
+        </div>
     </div>
+
+    {% if result.identical %}
+        <p class="cmp-empty">
+            Both documents contain the same data.
+        </p>
+    {% else %}
+
+        {% if result.added %}
+            <div class="cmp-group">
+                <h2>
+                    Added
+                    <span>{{ result.added|length }}</span>
+                </h2>
+
+                <ul class="cmp-list">
+                    {% for item in result.added %}
+                        <li class="cmp-row cmp-add">
+                            <span class="cmp-sign" aria-hidden="true">+</span>
+                            <span class="cmp-path">{{ item.path }}</span>
+                            <pre class="cmp-val"><code>{{ item.value }}</code></pre>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {% if result.removed %}
+            <div class="cmp-group">
+                <h2>
+                    Removed
+                    <span>{{ result.removed|length }}</span>
+                </h2>
+
+                <ul class="cmp-list">
+                    {% for item in result.removed %}
+                        <li class="cmp-row cmp-del">
+                            <span class="cmp-sign" aria-hidden="true">&minus;</span>
+                            <span class="cmp-path">{{ item.path }}</span>
+                            <pre class="cmp-val"><code>{{ item.value }}</code></pre>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {% if result.modified %}
+            <div class="cmp-group">
+                <h2>
+                    Modified
+                    <span>{{ result.modified|length }}</span>
+                </h2>
+
+                <ul class="cmp-list">
+                    {% for item in result.modified %}
+                        <li class="cmp-row cmp-mod">
+                            <span class="cmp-sign" aria-hidden="true">~</span>
+                            <span class="cmp-path">{{ item.path }}</span>
+
+                            <div class="cmp-val">
+                                <code class="cmp-old">{{ item.old }}</code>
+                                <span class="cmp-arrow" aria-label="changed to">&rarr;</span>
+                                <code class="cmp-new">{{ item.new }}</code>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
     {% endif %}
-
-    {% if result.removed %}
-    <div class="cmp-group">
-      <h2>Removed <span>{{ result.removed|length }}</span></h2>
-      <ul class="cmp-list">
-        {% for item in result.removed %}
-        <li class="cmp-row cmp-del">
-          <span class="cmp-sign" aria-hidden="true">&minus;</span>
-          <span class="cmp-path">{{ item.path }}</span>
-          <pre class="cmp-val"><code>{{ item.value }}</code></pre>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    {% if result.modified %}
-    <div class="cmp-group">
-      <h2>Modified <span>{{ result.modified|length }}</span></h2>
-      <ul class="cmp-list">
-        {% for item in result.modified %}
-        <li class="cmp-row cmp-mod">
-          <span class="cmp-sign" aria-hidden="true">~</span>
-          <span class="cmp-path">{{ item.path }}</span>
-          <div class="cmp-val">
-            <code class="cmp-old">{{ item.old }}</code><span class="cmp-arrow" aria-label="changed to">&rarr;</span><code class="cmp-new">{{ item.new }}</code>
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-  {% endif %}
 </section>
 {% endif %}
 
-<p class="privacy-note">Both documents are only used to build this comparison.</p>
+<p class="privacy-note">
+    Both documents are only used to build this comparison.
+</p>
 {% endblock %}
 
 {% block scripts %}
 <script>
-/* Editor chrome only: line numbers, line counts, Ctrl+Enter. No JSON logic. */
 (function () {
-  "use strict";
-  var form = document.getElementById("compare-form");
+    "use strict";
 
-  ["json_a", "json_b"].forEach(function (id) {
-    var ta = document.getElementById(id);
-    var gutter = document.getElementById("gutter-" + id.slice(-1));
-    var count = document.querySelector('[data-count="' + id + '"]');
-    if (!ta || !gutter) return;
+    var form = document.getElementById("compare-form");
 
-    function update() {
-      var n = ta.value ? ta.value.split("\n").length : 0;
-      var nums = [];
-      for (var i = 1; i <= Math.max(n, 1); i++) nums.push(i);
-      gutter.textContent = nums.join("\n");
-      if (count) count.textContent = n + (n === 1 ? " line" : " lines");
-      gutter.scrollTop = ta.scrollTop;
-    }
+    ["json_a", "json_b"].forEach(function (id) {
+        var textarea = document.getElementById(id);
+        var gutter = document.getElementById("gutter-" + id.slice(-1));
+        var count = document.querySelector('[data-count="' + id + '"]');
 
-    ta.addEventListener("input", update);
-    ta.addEventListener("scroll", function () { gutter.scrollTop = ta.scrollTop; });
-    ta.addEventListener("keydown", function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && form) {
-        e.preventDefault();
-        if (form.requestSubmit) form.requestSubmit(); else form.submit();
-      }
+        if (!textarea || !gutter) {
+            return;
+        }
+
+        function update() {
+            var lineCount = textarea.value
+                ? textarea.value.split("\n").length
+                : 0;
+
+            var numbers = [];
+
+            for (var i = 1; i <= Math.max(lineCount, 1); i++) {
+                numbers.push(i);
+            }
+
+            gutter.textContent = numbers.join("\n");
+
+            if (count) {
+                count.textContent =
+                    lineCount + (lineCount === 1 ? " line" : " lines");
+            }
+
+            gutter.scrollTop = textarea.scrollTop;
+        }
+
+        textarea.addEventListener("input", update);
+
+        textarea.addEventListener("scroll", function () {
+            gutter.scrollTop = textarea.scrollTop;
+        });
+
+        textarea.addEventListener("keydown", function (event) {
+            if (
+                (event.ctrlKey || event.metaKey) &&
+                event.key === "Enter" &&
+                form
+            ) {
+                event.preventDefault();
+
+                if (form.requestSubmit) {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            }
+        });
+
+        update();
     });
-    update();
-  });
 })();
 </script>
 {% endblock %}

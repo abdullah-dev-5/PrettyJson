@@ -5,115 +5,669 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0d1117">
 <title>{% block title %}PrettyJSON{% endblock %}</title>
-<style>
-:root{
-  color-scheme:dark;
-  --bg:#0d1117;--raised:#161b22;--hover:#21262d;--border:#30363d;--border-hi:#484f58;
-  --text:#e6edf3;--muted:#8b949e;--dim:#6e7681;
-  --green:#3fb950;--red:#f85149;--amber:#d29922;
-  --key:#79c0ff;--str:#a5d6ff;--num:#ffa657;--kw:#d2a8ff;
-  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  --pane-h:clamp(280px,52vh,600px);
-}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-::selection{background:rgba(63,185,80,.3)}
-body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font:13px/1.5 var(--mono);-webkit-font-smoothing:antialiased}
-button,textarea{font:inherit;color:inherit}button{cursor:pointer}
-:focus-visible{outline:1px solid var(--green);outline-offset:1px}
-.container{flex:1;display:flex;flex-direction:column;width:min(1280px,calc(100% - 32px));margin:0 auto}
-main{flex:1}
-.skip-link{position:absolute;left:8px;top:-40px;z-index:10;padding:6px 10px;background:var(--green);color:#0d1117;transition:top .1s}
-.skip-link:focus{top:8px}
 
-/* Header */
-header{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;height:68px;border-bottom:1px solid var(--border)}
-.logo{display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;font-weight:700;font-size:25px;letter-spacing:-.6px}
-.logo-icon{color:var(--green);font-size:30px;font-weight:500;letter-spacing:-2px;text-shadow:0 0 14px rgba(63,185,80,.45)}
-.wordmark::after{content:"_";margin-left:2px;color:var(--green);animation:blink 1.1s steps(1) infinite}
-.ver{padding:1px 6px;border:1px solid var(--border);border-radius:3px;color:var(--muted);font-size:11px;font-weight:400;letter-spacing:0}
-.hdr-right{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--dim)}
-.tool-status{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
-.tool-status i,.status::before{width:7px;height:7px;border-radius:50%;background:var(--dim)}
-.tool-status i{display:inline-block}
-.tool-status[data-state=valid] i,.status[data-state=valid]::before{background:var(--green)}
-.tool-status[data-state=error] i,.status[data-state=error]::before{background:var(--red)}
-@keyframes blink{50%{opacity:0}}
-@keyframes sway{from{rotate:-4deg}to{rotate:4deg}}
-@keyframes swing{0%{rotate:0}15%{rotate:22deg}35%{rotate:-14deg}55%{rotate:8deg}75%{rotate:-4deg}100%{rotate:0}}
+<style>
+/* ==========================================================================
+   PrettyJSON design system
+   1. Tokens          5. Terminal prompt + badges   9. Status bar
+   2. Base            6. Intro                      10. Footer
+   3. Layout          7. Workspace + buttons        11. Responsive
+   4. Header          8. Editor panels              12. Accessibility
+   ========================================================================== */
+
+
+/* 1. Tokens
+   -------------------------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #0d1117;
+  --raised: #161b22;
+  --hover: #21262d;
+
+  /* Borders */
+  --border: #30363d;
+  --border-hi: #484f58;
+
+  /* Text */
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --dim: #6e7681;
+
+  /* Status */
+  --green: #3fb950;
+  --red: #f85149;
+  --amber: #d29922;
+
+  /* JSON syntax */
+  --key: #79c0ff;
+  --str: #a5d6ff;
+  --num: #ffa657;
+  --kw: #d2a8ff;
+
+  /* Type + sizing */
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+  --pane-h: clamp(280px, 52vh, 600px);
+}
+
+
+/* 2. Base
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+::selection {
+  background: rgba(63, 185, 80, 0.3);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+
+/* 3. Layout
+   -------------------------------------------------------------------------- */
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: min(1280px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+main {
+  flex: 1;
+}
+
+
+/* 4. Header
+   -------------------------------------------------------------------------- */
+header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 68px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  text-decoration: none;
+}
+
+.logo-icon {
+  color: var(--green);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -2px;
+  text-shadow: 0 0 14px rgba(63, 185, 80, 0.45);
+}
+
+.wordmark::after {
+  content: "_";
+  margin-left: 2px;
+  color: var(--green);
+  animation: blink 1.1s steps(1) infinite;
+}
+
+.ver {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+/* Status dot, shared by the header indicator and the status bar */
+.tool-status i,
+.status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.tool-status i {
+  display: inline-block;
+}
+
+.tool-status[data-state="valid"] i,
+.status[data-state="valid"]::before {
+  background: var(--green);
+}
+
+.tool-status[data-state="error"] i,
+.status[data-state="error"]::before {
+  background: var(--red);
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 10;
+  padding: 6px 10px;
+  background: var(--green);
+  color: var(--bg);
+  transition: top 0.1s;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
 
 /* Hanging JSON tokens (hover to swing) */
-.hang{position:absolute;left:50%;top:0;display:flex;align-items:flex-start;gap:18px;translate:-50% 0}
-.hang span{position:relative;margin-top:var(--h);padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--raised);font-size:11px;transform-origin:50% calc(var(--h) * -1);animation:sway 5s ease-in-out var(--d) infinite alternate}
-.hang span::before{content:"";position:absolute;left:50%;bottom:100%;height:var(--h);border-left:1px solid var(--border-hi)}
-.hang span.kick{animation:swing 1.4s ease-out}
-
-/* Terminal prompt + badges */
-.prompt{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:12px 0 0;font-size:12px}
-.ps{color:var(--key)}.pd{margin:0 6px;color:var(--green)}
-.caret{display:inline-block;width:7px;height:14px;margin-left:2px;vertical-align:-2px;background:var(--green);animation:blink 1.1s steps(1) infinite}
-.badges{display:flex;flex-wrap:wrap;gap:6px}
-.badge{display:inline-flex;overflow:hidden;border:1px solid var(--border);border-radius:3px;font-size:10px;line-height:16px}
-.badge b,.badge em{padding:0 6px;font-style:normal;font-weight:400}
-.badge b{background:var(--raised);color:var(--muted)}
-.badge em{color:var(--green)}
-.badge.n em{color:var(--num)}.badge.k em{color:var(--key)}.badge.b em{color:var(--kw)}.badge.r em{color:var(--red)}
-
-/* Intro */
-.intro{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;padding:14px 0 12px}
-.intro>*{margin:0}
-.eyebrow{color:var(--dim);font-size:11px}
-h1{font:500 13px var(--mono);color:var(--text)}
-h1 span{color:var(--green)}
-.description{color:var(--muted);font-size:12px}
-
-/* Workspace */
-.workspace{overflow:hidden;border:1px solid var(--border);border-radius:6px;background:var(--bg)}
-.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--raised)}
-.button-group{display:flex;flex-wrap:wrap;gap:6px}
-.button{height:28px;padding:0 12px;border:1px solid var(--border);border-radius:5px;background:var(--hover);font-size:12px;transition:background-color .1s,border-color .1s}
-.button:hover{background:#30363d;border-color:var(--border-hi)}
-.button:active{background:var(--bg)}
-.button-primary{border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.1);color:var(--green)}
-.button-primary:hover{background:rgba(63,185,80,.2);border-color:var(--green)}
-
-/* Panes */
-.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
-.editor-panel{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-.panel-header,.panel-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;background:var(--raised)}
-.panel-header{height:32px;border-bottom:1px solid var(--border)}
-.panel-footer{height:32px;border-top:1px solid var(--border);color:var(--dim);font-size:11px}
-.panel-title{margin:0;font-size:12px;font-weight:500;color:var(--muted)}
-.panel-label{padding:0 5px;border:1px solid var(--border);border-radius:3px;color:var(--dim);font-size:10px;transition:color .1s,border-color .1s}
-.editor-panel:focus-within .panel-title{color:var(--text)}
-.editor-panel:focus-within .panel-label{color:var(--green);border-color:rgba(63,185,80,.4)}
-.editor{display:block;width:100%;height:var(--pane-h);margin:0;padding:12px;border:0;outline:0;resize:none;overflow:auto;background:transparent;color:var(--text);font:12.5px/1.6 var(--mono);tab-size:2;white-space:pre}
-.editor{caret-color:var(--green);scrollbar-color:var(--border) transparent}
-.editor::placeholder{color:var(--dim)}
-.k{color:var(--key)}.s{color:var(--str)}.n{color:var(--num)}.b{color:var(--kw)}
-.text-button{height:20px;padding:0 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);font-size:11px;transition:color .1s,border-color .1s,background-color .1s}
-.text-button:hover{color:var(--text);border-color:var(--border-hi);background:var(--hover)}
-
-/* Status bar */
-.status{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;min-height:30px;padding:6px 12px;border-top:1px solid var(--border);background:var(--raised);color:var(--muted);font-size:11px}
-.status::before{content:"";flex:none}
-.st-msg{margin-right:auto}
-.status[data-state=valid] .st-msg{color:var(--green)}
-.status[data-state=error] .st-msg{color:var(--red)}
-.status .m{padding-left:12px;border-left:1px solid var(--border);white-space:nowrap}
-.privacy-note{margin:10px 0 0;color:var(--dim);font-size:11px}
-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:24px;padding:12px 0;border-top:1px solid var(--border);color:var(--dim);font-size:11px}
-
-@media (max-width:800px){
-  :root{--pane-h:clamp(220px,40vh,420px)}
-  .container{width:calc(100% - 20px)}
-  .editor-grid{grid-template-columns:1fr}
-  .hang{display:none}
+.hang {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  translate: -50% 0;
 }
-@media (pointer:coarse){.button{height:36px}.text-button{height:28px}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+.hang span {
+  position: relative;
+  margin-top: var(--h);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--raised);
+  font-size: 11px;
+  transform-origin: 50% calc(var(--h) * -1);
+  animation: sway 5s ease-in-out var(--d) infinite alternate;
+}
+
+.hang span::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  height: var(--h);
+  border-left: 1px solid var(--border-hi);
+}
+
+.hang span.kick {
+  animation: swing 1.4s ease-out;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+@keyframes sway {
+  from { rotate: -4deg; }
+  to   { rotate: 4deg; }
+}
+
+@keyframes swing {
+  0%   { rotate: 0; }
+  15%  { rotate: 22deg; }
+  35%  { rotate: -14deg; }
+  55%  { rotate: 8deg; }
+  75%  { rotate: -4deg; }
+  100% { rotate: 0; }
+}
+
+
+/* 5. Terminal prompt + badges
+   -------------------------------------------------------------------------- */
+.prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0 0;
+  font-size: 12px;
+}
+
+.ps {
+  color: var(--key);
+}
+
+.pd {
+  margin: 0 6px;
+  color: var(--green);
+}
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  background: var(--green);
+  vertical-align: -2px;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.badge b,
+.badge em {
+  padding: 0 6px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.badge b {
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.badge em {
+  color: var(--green);
+}
+
+.badge.n em { color: var(--num); }
+.badge.k em { color: var(--key); }
+.badge.b em { color: var(--kw); }
+.badge.r em { color: var(--red); }
+
+
+/* 6. Intro
+   -------------------------------------------------------------------------- */
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 14px 0 12px;
+}
+
+.intro > * {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+h1 {
+  color: var(--text);
+  font: 500 13px var(--mono);
+}
+
+h1 span {
+  color: var(--green);
+}
+
+.description {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+
+/* 7. Workspace + buttons
+   -------------------------------------------------------------------------- */
+.workspace {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--raised);
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Default button. Also works on <a class="button"> links. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--hover);
+  color: var(--text);
+  font-size: 12px;
+  text-decoration: none;
+  transition: background-color 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.button:hover {
+  border-color: var(--border-hi);
+  background: var(--border);
+}
+
+.button:active {
+  background: var(--bg);
+}
+
+/* Primary action: green tint */
+.button-primary {
+  border-color: rgba(63, 185, 80, 0.5);
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--green);
+}
+
+.button-primary:hover {
+  border-color: var(--green);
+  background: rgba(63, 185, 80, 0.2);
+}
+
+/* Secondary action: quiet outline. Always combine with .button. */
+.button-secondary {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.button-secondary:hover {
+  border-color: var(--border-hi);
+  background: var(--border);
+  color: var(--text);
+}
+
+.button-secondary:active {
+  background: var(--bg);
+}
+
+.button:disabled {
+  opacity: 0.5;
+}
+
+/* Small text button used in panel footers */
+.text-button {
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  transition: color 0.1s, border-color 0.1s, background-color 0.1s;
+}
+
+.text-button:hover {
+  border-color: var(--border-hi);
+  background: var(--hover);
+  color: var(--text);
+}
+
+
+/* 8. Editor panels
+   -------------------------------------------------------------------------- */
+.editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+}
+
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.panel-header,
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  background: var(--raised);
+}
+
+.panel-header {
+  height: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-footer {
+  height: 32px;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.panel-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel-label {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--dim);
+  font-size: 10px;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.editor-panel:focus-within .panel-title {
+  color: var(--text);
+}
+
+.editor-panel:focus-within .panel-label {
+  border-color: rgba(63, 185, 80, 0.4);
+  color: var(--green);
+}
+
+.editor {
+  display: block;
+  width: 100%;
+  height: var(--pane-h);
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  outline: 0;
+  overflow: auto;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  font: 12.5px/1.6 var(--mono);
+  tab-size: 2;
+  white-space: pre;
+  caret-color: var(--green);
+  scrollbar-color: var(--border) transparent;
+}
+
+.editor::placeholder {
+  color: var(--dim);
+}
+
+/* JSON syntax colors */
+.k { color: var(--key); }
+.s { color: var(--str); }
+.n { color: var(--num); }
+.b { color: var(--kw); }
+
+
+/* 9. Status bar
+   -------------------------------------------------------------------------- */
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.status::before {
+  content: "";
+  flex: none;
+}
+
+.st-msg {
+  margin-right: auto;
+}
+
+.status[data-state="valid"] .st-msg {
+  color: var(--green);
+}
+
+.status[data-state="error"] .st-msg {
+  color: var(--red);
+}
+
+.status .m {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.privacy-note {
+  margin: 10px 0 0;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+
+/* 10. Footer
+   -------------------------------------------------------------------------- */
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+
+/* 11. Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 800px) {
+  :root {
+    --pane-h: clamp(220px, 40vh, 420px);
+  }
+
+  .container {
+    width: calc(100% - 20px);
+  }
+
+  .editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hang {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .button      { height: 36px; }
+  .text-button { height: 28px; }
+}
+
+
+/* 12. Accessibility
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 1px solid var(--green);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 </style>
 </head>
+
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
@@ -124,9 +678,11 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-
       <span class="wordmark">PrettyJSON</span>
       <span class="ver">{% block app_version %}v1.0.0{% endblock %}</span>
     </a>
+
     <div class="hdr-right">
       <span class="tool-status" id="tool-status" data-state="ready"><i></i><span>ready</span></span>
     </div>
+
     <div class="hang" aria-hidden="true">
       <span class="k" style="--h:14px;--d:0s">{ }</span>
       <span class="b" style="--h:30px;--d:-1.3s">[ ]</span>
@@ -136,7 +692,10 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-
   </header>
 
   <div class="prompt">
-    <div aria-hidden="true"><span class="ps">~/prettyjson</span><span class="pd">$</span><span id="cmd">prettyjson --indent 2</span><i class="caret"></i></div>
+    <div aria-hidden="true">
+      <span class="ps">~/prettyjson</span><span class="pd">$</span><span id="cmd">prettyjson --indent 2</span><i class="caret"></i>
+    </div>
+
     <div class="badges">
       <span class="badge"><b>parser</b><em>JSON.parse</em></span>
       <span class="badge"><b>mode</b><em>client-side</em></span>
@@ -156,24 +715,37 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-
 </div>
 
 <script>
-/* Visual effects only. No JSON logic lives here: add your own in { block scripts }. */
+/* Visual effects only. No JSON logic lives here: add your own in the scripts block. */
 (function () {
   "use strict";
+
+  /* Typewriter effect for the terminal prompt */
   var cmd = document.getElementById("cmd");
-  if (cmd && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    var text = cmd.textContent, i = 0;
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (cmd && !reduceMotion) {
+    var text = cmd.textContent;
+    var i = 0;
     cmd.textContent = "";
-    var t = setInterval(function () {
+
+    var timer = setInterval(function () {
       cmd.textContent = text.slice(0, ++i);
-      if (i >= text.length) clearInterval(t);
+      if (i >= text.length) clearInterval(timer);
     }, 22);
   }
-  document.querySelectorAll(".hang span").forEach(function (c) {
-    c.addEventListener("mouseenter", function () { c.classList.add("kick"); });
-    c.addEventListener("animationend", function () { c.classList.remove("kick"); });
+
+  /* Swing the hanging tokens on hover */
+  document.querySelectorAll(".hang span").forEach(function (token) {
+    token.addEventListener("mouseenter", function () {
+      token.classList.add("kick");
+    });
+    token.addEventListener("animationend", function () {
+      token.classList.remove("kick");
+    });
   });
 })();
 </script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

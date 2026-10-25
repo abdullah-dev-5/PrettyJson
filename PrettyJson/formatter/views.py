@@ -28,3 +28,5 @@ def home(request):
     return render(request, 'formatter/index.html', {"result": result})
 
 
+def compare(request):
+    return render(request, 'formatter/compare.html')

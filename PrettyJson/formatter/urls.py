@@ -6,5 +6,6 @@ app_name = 'format'
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('compare/', views.compare, name='compare'),
     
 ]
